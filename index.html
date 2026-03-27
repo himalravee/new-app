@@ -25,7 +25,41 @@
     <script>
         // CONFIGURATION FROM YOUR SINRIC CREDENTIALS TAB
         const APP_KEY = "94223934-3419-4c7c-ad06-f38cbffdfb08";
-        const DEVICE_ID = "67fbd683bddfc53e33d5a6b6"; // From your log
+        const DEVICE_ID = "67fbd683bddfc53e33d5a6b6"; // 
+        async function sendGlobalCommand(state) {
+    const logDiv = document.getElementById('log');
+    logDiv.innerHTML = `[${new Date().toLocaleTimeString()}] Sending ${state}...`;
+
+    // Using the CORS Proxy is essential for GitHub Pages
+    const proxy = "https://corsproxy.io/?"; 
+    const url = `${proxy}https://api.sinric.pro/v2/action`;
+
+    const payload = {
+        action: "setPowerState",
+        deviceId: DEVICE_ID,
+        value: { state: state }
+    };
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'x-sinricpro-appkey': APP_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            logDiv.innerHTML += `<br>✓ SUCCESS: ESP32 Updated!`;
+        } else {
+            // If you get 401/403 here, check your App Key
+            logDiv.innerHTML += `<br>✗ FAILED: Status ${response.status}`;
+        }
+    } catch (err) {
+        logDiv.innerHTML += `<br>✗ ERROR: Bridge Connection Failed.`;
+    }
+}From your log
 
         async function sendGlobalCommand(state) {
             const logDiv = document.getElementById('log');
