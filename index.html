@@ -20,13 +20,10 @@
         <button id="mainBtn" class="btn off" onclick="sendCmd()">TURN ON</button>
         <div id="status">Ready</div>
     </div>
-
     <script>
         var deviceState = false;
         var API_KEY = '4c449d7e-a7b5-4d27-960e-b6e16b5e0aa1';
         var DEVICE_ID = '67fbd683bddfc53e33d5a6b6';
-
-        // Use corsproxy.io to bypass CORS
         var PROXY = 'https://corsproxy.io/?';
         var SINRIC_URL = 'https://api.sinric.pro/api/v1/devices/' + DEVICE_ID + '/action';
 
@@ -34,10 +31,8 @@
             var btn = document.getElementById('mainBtn');
             var status = document.getElementById('status');
             var nextState = deviceState ? 'Off' : 'On';
-
             btn.disabled = true;
             status.innerText = 'Sending...';
-
             fetch(PROXY + encodeURIComponent(SINRIC_URL), {
                 method: 'POST',
                 headers: {
@@ -59,7 +54,7 @@
                     btn.className = 'btn ' + (deviceState ? 'on' : 'off');
                     status.innerText = 'Success!';
                 } else {
-                    status.innerText = 'Sinric Error';
+                    status.innerText = 'Sinric Error: ' + JSON.stringify(result);
                 }
             })
             .catch(function(err) {
