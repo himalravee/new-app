@@ -1,46 +1,89 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>NexaPCB Industrial Control</title>
+    <title>Light Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body { font-family: sans-serif; text-align: center; background: #222; color: #fff; padding: 50px; }
-        .btn { padding: 30px; width: 200px; font-size: 24px; cursor: pointer; border-radius: 15px; border: none; transition: 0.3s; }
-        .on { background: #2ecc71; color: white; box-shadow: 0 0 15px #2ecc71; }
-        .off { background: #e74c3c; color: white; box-shadow: 0 0 15px #e74c3c; }
+        body { font-family: sans-serif; text-align: center; background: #121212; color: #fff; padding-top: 50px; }
+        .card { background: #1e1e1e; padding: 40px; border-radius: 20px; display: inline-block; border: 1px solid #333; }
+        .btn { padding: 20px 40px; font-size: 20px; cursor: pointer; border-radius: 10px; border: none; color: white; transition: 0.3s; width: 220px; font-weight: bold; }
+        .on { background: #2ecc71; box-shadow: 0 0 15px rgba(46,204,113,0.4); }
+        .off { background: #e74c3c; box-shadow: 0 0 15px rgba(231,76,60,0.4); }
+        .btn:disabled { background: #555; cursor: wait; }
+        #status { margin-top: 20px; color: #888; font-size: 14px; }
     </style>
 </head>
 <body>
-    <h1>Gateway Control</h1>
-    <button id="btn" class="btn off" onclick="runAction()">TURN ON</button>
-    <p id="status">Ready</p>
+    <div class="card">
+        <h2 style="color: #00e5ff;">Light Control</h2>
+        <p style="color:#888; font-size:13px;">Controls via Sinric Pro</p>
+        <button id="mainBtn" class="btn off" onclick="sendCmd()">TURN ON</button>
+        <div id="status">Ready</div>
+    </div>
 
     <script>
-        let isDeviceOn = false;
-        const rinstrumIP = "192.168.2.235"; // CHANGE THIS to your Rinstrum Local IP
+        var deviceState = false;
+        var API_KEY = '4c449d7e-a7b5-4d27-960e-b6e16b5e0aa1';
+        var DEVICE_ID = '67fbd683bddfc53e33d5a6b6';
 
-        async function runAction() {
-            const status = document.getElementById('status');
-            const btn = document.getElementById('btn');
-            const targetState = isDeviceOn ? "Off" : "On";
+        // Use corsproxy.io to bypass CORS
+        var PROXY = 'https://corsproxy.io/?';
+        var SINRIC_URL = 'https://api.sinric.pro/api/v1/devices/' + DEVICE_ID + '/action';
 
-            status.innerText = "Processing via Rinstrum...";
-            
-            try {
-                // Call Rinstrum Bridge instead of Sinric Directly to avoid CORS
-                const response = await fetch(`http://${rinstrumIP}/api/control?state=${targetState}`);
-                
-                if (response.ok) {
-                    isDeviceOn = !isDeviceOn;
-                    btn.innerText = `TURN ${isDeviceOn ? 'OFF' : 'ON'}`;
-                    btn.className = `btn ${isDeviceOn ? 'on' : 'off'}`;
-                    status.innerText = "Command Sent Successfully";
+        function sendCmd() {
+            var btn = document.getElementById('mainBtn');
+            var status = document.getElementById('status');
+            var nextState = deviceState ? 'Off' : 'On';
+
+            btn.disabled = true;
+            status.innerText = 'Sending...';
+
+            fetch(PROXY + encodeURIComponent(SINRIC_URL), {
+                method: 'POST',
+                headers: {
+                    'x-sinric-api-key': API_KEY,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: 'request',
+                    action: 'setPowerState',
+                    value: { state: nextState }
+                })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(result) {
+                btn.disabled = false;
+                if (result.success === true) {
+                    deviceState = !deviceState;
+                    btn.innerText = 'TURN ' + (deviceState ? 'OFF' : 'ON');
+                    btn.className = 'btn ' + (deviceState ? 'on' : 'off');
+                    status.innerText = 'Success!';
                 } else {
-                    status.innerText = "Bridge Error - Check Rinstrum Lua";
+                    status.innerText = 'Sinric Error';
                 }
-            } catch (err) {
-                status.innerText = "Connection Error - Are you on the same network?";
-            }
+            })
+            .catch(function(err) {
+                btn.disabled = false;
+                status.innerText = 'Error: ' + err.message;
+            });
         }
     </script>
 </body>
 </html>
+```
+
+---
+
+**Step 2 — Host on GitHub Pages:**
+
+1. Go to `https://github.com` → Sign up free
+2. Click **New Repository** → name it `light-control` → Public → Create
+3. Click **Add file** → **Create new file**
+4. Name it `index.html`
+5. Paste the code above
+6. Click **Commit changes**
+7. Go to **Settings** → **Pages** → Source → **main** branch → Save
+
+Your page will be live at:
+```
+https://YOUR_USERNAME.github.io/light-control
