@@ -11,6 +11,7 @@
         .off { background: #e74c3c; box-shadow: 0 0 15px rgba(231,76,60,0.4); }
         .btn:disabled { background: #555; cursor: wait; }
         #status { margin-top: 20px; color: #888; font-size: 14px; }
+        #log { margin-top: 15px; color: #555; font-size: 11px; max-height: 80px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -19,63 +20,82 @@
         <p style="color:#888; font-size:13px;">Controls via Sinric Pro</p>
         <button id="mainBtn" class="btn off" onclick="sendCmd()">TURN ON</button>
         <div id="status">Ready</div>
+        <div id="log"></div>
     </div>
     <script>
         var deviceState = false;
         var API_KEY = '4c449d7e-a7b5-4d27-960e-b6e16b5e0aa1';
         var DEVICE_ID = '67fbd683bddfc53e33d5a6b6';
         var SINRIC_URL = 'https://api.sinric.pro/api/v1/devices/' + DEVICE_ID + '/action';
+        var PROXY = 'https://corsproxy.io/?' + encodeURIComponent(SINRIC_URL);
 
-        var PROXIES = [
-            'https://corsproxy.io/?' + encodeURIComponent(SINRIC_URL),
-            'https://api.allorigins.win/raw?url=' + encodeURIComponent(SINRIC_URL),
-            'https://thingproxy.freeboard.io/fetch/' + SINRIC_URL
+        function addLog(msg) {
+            var log = document.getElementById('log');
+            log.innerText = msg;
+            console.log(msg);
+        }
+
+        // Try 4 different payload formats
+        var payloads = [
+            // Format 1 - standard
+            function(state) {
+                return { type: 'request', action: 'setPowerState', value: { state: state } };
+            },
+            // Format 2 - no type
+            function(state) {
+                return { action: 'setPowerState', value: { state: state } };
+            },
+            // Format 3 - value as string
+            function(state) {
+                return { type: 'request', action: 'setPowerState', value: state };
+            },
+            // Format 4 - minimal
+            function(state) {
+                return { action: 'setPowerState', state: state };
+            }
         ];
 
-        var currentProxy = 0;
+        var currentFormat = 0;
 
-        function tryFetch(proxyIndex, nextState) {
-            if (proxyIndex >= PROXIES.length) {
-                document.getElementById('status').innerText = 'All proxies failed - try again';
+        function tryFormat(formatIndex, nextState) {
+            if (formatIndex >= payloads.length) {
+                document.getElementById('status').innerText = 'All formats failed';
                 document.getElementById('mainBtn').disabled = false;
                 return;
             }
 
-            var status = document.getElementById('status');
-            status.innerText = 'Trying proxy ' + (proxyIndex + 1) + '...';
+            var payload = payloads[formatIndex](nextState);
+            addLog('Trying format ' + (formatIndex+1) + ': ' + JSON.stringify(payload));
 
-            fetch(PROXIES[proxyIndex], {
+            fetch(PROXY, {
                 method: 'POST',
                 headers: {
                     'x-sinric-api-key': API_KEY,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    type: 'request',
-                    action: 'setPowerState',
-                    value: { state: nextState }
-                })
+                body: JSON.stringify(payload)
             })
             .then(function(r) { return r.json(); })
             .then(function(result) {
-                console.log('Proxy ' + (proxyIndex+1) + ' result:', result);
+                addLog('Format ' + (formatIndex+1) + ' response: ' + JSON.stringify(result));
                 var btn = document.getElementById('mainBtn');
                 btn.disabled = false;
+
                 if (result.success === true) {
-                    currentProxy = proxyIndex;
+                    currentFormat = formatIndex;
                     deviceState = !deviceState;
                     btn.innerText = 'TURN ' + (deviceState ? 'OFF' : 'ON');
                     btn.className = 'btn ' + (deviceState ? 'on' : 'off');
-                    status.innerText = 'Success!';
+                    document.getElementById('status').innerText = 'Sent! Check relay...';
+                    addLog('SUCCESS with format ' + (formatIndex+1));
                 } else {
-                    // try next proxy
-                    tryFetch(proxyIndex + 1, nextState);
+                    addLog('Format ' + (formatIndex+1) + ' failed, trying next...');
+                    tryFormat(formatIndex + 1, nextState);
                 }
             })
             .catch(function(err) {
-                console.error('Proxy ' + (proxyIndex+1) + ' failed:', err);
-                // try next proxy
-                tryFetch(proxyIndex + 1, nextState);
+                addLog('Format ' + (formatIndex+1) + ' error: ' + err.message);
+                tryFormat(formatIndex + 1, nextState);
             });
         }
 
@@ -83,7 +103,8 @@
             var btn = document.getElementById('mainBtn');
             var nextState = deviceState ? 'Off' : 'On';
             btn.disabled = true;
-            tryFetch(currentProxy, nextState);
+            document.getElementById('status').innerText = 'Sending...';
+            tryFormat(0, nextState);
         }
     </script>
 </body>
