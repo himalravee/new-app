@@ -24,6 +24,9 @@
 
     <script>
         let isOn = false;
+        // Add the proxy prefix before the Sinric URL
+const proxyUrl = "https://cors-anywhere.herokuapp.com/";
+const sinricUrl = `https://api.sinric.pro/api/v1/devices/${deviceId}/action`;
         
         // PASTE YOUR DETAILS HERE
         const deviceId = "67fbd683bddfc53e33d5a6b6"; // From your screenshot
