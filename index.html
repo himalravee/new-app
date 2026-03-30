@@ -25,16 +25,26 @@
         var API_KEY = '4c449d7e-a7b5-4d27-960e-b6e16b5e0aa1';
         var DEVICE_ID = '67fbd683bddfc53e33d5a6b6';
         var SINRIC_URL = 'https://api.sinric.pro/api/v1/devices/' + DEVICE_ID + '/action';
-        var PROXY = 'https://corsproxy.io/?' + encodeURIComponent(SINRIC_URL);
 
-        function sendCmd() {
-            var btn = document.getElementById('mainBtn');
+        var PROXIES = [
+            'https://corsproxy.io/?' + encodeURIComponent(SINRIC_URL),
+            'https://api.allorigins.win/raw?url=' + encodeURIComponent(SINRIC_URL),
+            'https://thingproxy.freeboard.io/fetch/' + SINRIC_URL
+        ];
+
+        var currentProxy = 0;
+
+        function tryFetch(proxyIndex, nextState) {
+            if (proxyIndex >= PROXIES.length) {
+                document.getElementById('status').innerText = 'All proxies failed - try again';
+                document.getElementById('mainBtn').disabled = false;
+                return;
+            }
+
             var status = document.getElementById('status');
-            var nextState = deviceState ? 'Off' : 'On';
-            btn.disabled = true;
-            status.innerText = 'Sending...';
+            status.innerText = 'Trying proxy ' + (proxyIndex + 1) + '...';
 
-            fetch(PROXY, {
+            fetch(PROXIES[proxyIndex], {
                 method: 'POST',
                 headers: {
                     'x-sinric-api-key': API_KEY,
@@ -48,22 +58,32 @@
             })
             .then(function(r) { return r.json(); })
             .then(function(result) {
+                console.log('Proxy ' + (proxyIndex+1) + ' result:', result);
+                var btn = document.getElementById('mainBtn');
                 btn.disabled = false;
-                console.log('Sinric result:', result);
                 if (result.success === true) {
+                    currentProxy = proxyIndex;
                     deviceState = !deviceState;
                     btn.innerText = 'TURN ' + (deviceState ? 'OFF' : 'ON');
                     btn.className = 'btn ' + (deviceState ? 'on' : 'off');
                     status.innerText = 'Success!';
                 } else {
-                    status.innerText = 'Sinric Error: ' + JSON.stringify(result);
+                    // try next proxy
+                    tryFetch(proxyIndex + 1, nextState);
                 }
             })
             .catch(function(err) {
-                btn.disabled = false;
-                console.error('Error:', err);
-                status.innerText = 'Error: ' + err.message;
+                console.error('Proxy ' + (proxyIndex+1) + ' failed:', err);
+                // try next proxy
+                tryFetch(proxyIndex + 1, nextState);
             });
+        }
+
+        function sendCmd() {
+            var btn = document.getElementById('mainBtn');
+            var nextState = deviceState ? 'Off' : 'On';
+            btn.disabled = true;
+            tryFetch(currentProxy, nextState);
         }
     </script>
 </body>
